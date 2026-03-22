@@ -1,9 +1,12 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 interface Result {
   title: string;
   weight: number;
-  reps: number;
+  /** Omitted for the working-weight (100%) row. */
+  reps?: number;
+  /** True for the final target load (not warmup). */
+  isWorkingSet?: boolean;
 }
 
 /** Smallest plate / jump your gym loads in (e.g. 5 → only …40, 45, 50… exist). Change to 2.5 if you have micro plates. */
@@ -11,6 +14,11 @@ const GYM_WEIGHT_STEP_LB = 5;
 
 function snapToGymWeight(lb: number): number {
   return Math.round(lb / GYM_WEIGHT_STEP_LB) * GYM_WEIGHT_STEP_LB;
+}
+
+/** Per-side load must be in 5 lb jumps (no 2.5s); floor after halving the snapped bar total. */
+function snapPerSideFloorLb(lb: number): number {
+  return Math.max(0, Math.floor(lb / GYM_WEIGHT_STEP_LB) * GYM_WEIGHT_STEP_LB);
 }
 
 /** Standard full-size plates (lb), largest first — greedy sum matches typical loading. */
@@ -29,41 +37,69 @@ function platesBreakdownLb(totalLb: number): string {
   return parts.join(", ");
 }
 
+type EquipmentMode = "barbell" | "machine";
+
+const WARMUP_SETS: { pct: number; reps: number; title: string }[] = [
+  { title: "40%", pct: 0.4, reps: 8 },
+  { title: "60%", pct: 0.6, reps: 5 },
+  { title: "75%", pct: 0.75, reps: 2 },
+];
+
 const App = () => {
+  const [mode, setMode] = useState<EquipmentMode>("barbell");
   const [weight, setWeight] = useState<number | "">("");
-  const [result, setResult] = useState<Result[]>([]);
 
   const handleWeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
     if (raw === "" || Number(raw) === 0) {
       setWeight("");
-      setResult([]);
       return;
     }
-
-    const value = Number(raw);
-    setWeight(value);
-
-    const result: Result[] = [];
-
-    result.push({
-      title: "40%",
-      weight: snapToGymWeight(value * 0.4),
-      reps: 8,
-    });
-    result.push({
-      title: "60%",
-      weight: snapToGymWeight(value * 0.6),
-      reps: 5,
-    });
-    result.push({
-      title: "75%",
-      weight: snapToGymWeight(value * 0.75),
-      reps: 2,
-    });
-
-    setResult(result);
+    setWeight(Number(raw));
   };
+
+  const result: Result[] = useMemo(() => {
+    if (weight === "" || weight === 0) {
+      return [];
+    }
+
+    const value = Number(weight);
+
+    if (mode === "machine") {
+      return [
+        ...WARMUP_SETS.map((s) => ({
+          title: s.title,
+          weight: snapToGymWeight(value * s.pct),
+          reps: s.reps,
+        })),
+        {
+          title: "100%",
+          weight: snapToGymWeight(value),
+          isWorkingSet: true,
+        },
+      ];
+    }
+
+    /** Barbell: % of full bar → snap total → ÷2 → floor per side to 5 lb (no 2.5 lb plates). */
+    const perSide = (pct: number) =>
+      snapPerSideFloorLb(snapToGymWeight(value * pct) / 2);
+
+    return [
+      ...WARMUP_SETS.map((s) => ({
+        title: s.title,
+        weight: perSide(s.pct),
+        reps: s.reps,
+      })),
+      {
+        title: "100%",
+        weight: perSide(1),
+        isWorkingSet: true,
+      },
+    ];
+  }, [weight, mode]);
+
+  const warmupRows = result.filter((r) => !r.isWorkingSet);
+  const workingRow = result.find((r) => r.isWorkingSet);
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 py-12 sm:px-6">
@@ -86,12 +122,44 @@ const App = () => {
             WarmupCalc
           </h1>
           <p className="text-sm leading-relaxed text-slate-400">
-            Choose your working weight to see warmup sets and per-side plate
-            loads. On machines? You can ignore the loading details.
+            Choose your working weight for warmup sets
           </p>
         </header>
 
         <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-6 shadow-2xl shadow-black/50 backdrop-blur-xl sm:p-8">
+          <div
+            className="mb-6 flex rounded-xl border border-white/10 bg-slate-900/50 p-1"
+            role="tablist"
+            aria-label="Equipment type"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === "barbell"}
+              className={`flex-1 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                mode === "barbell"
+                  ? "bg-slate-800 text-white shadow-sm"
+                  : "text-slate-400 hover:text-slate-300"
+              }`}
+              onClick={() => setMode("barbell")}
+            >
+              Barbell
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === "machine"}
+              className={`flex-1 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                mode === "machine"
+                  ? "bg-slate-800 text-white shadow-sm"
+                  : "text-slate-400 hover:text-slate-300"
+              }`}
+              onClick={() => setMode("machine")}
+            >
+              Machine
+            </button>
+          </div>
+
           <label
             htmlFor="weight"
             className="mb-2 block text-xs font-medium uppercase tracking-wider text-slate-400"
@@ -110,30 +178,76 @@ const App = () => {
           />
 
           {result.length > 0 && (
-            <ul className="mt-8 space-y-0 divide-y divide-white/10">
-              {result.map((item) => (
-                <li
-                  key={item.title}
-                  className="flex flex-col gap-1 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4"
-                >
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-sm font-medium tabular-nums text-blue-400/90">
-                      {item.title}
-                    </span>
-                    <span className="text-lg font-semibold tabular-nums text-white">
-                      {item.weight} lbs
-                    </span>
-                    <span className="text-slate-500">×</span>
-                    <span className="tabular-nums text-slate-300">
-                      {item.reps} reps
-                    </span>
-                  </div>
-                  <p className="text-xs leading-relaxed text-slate-500 sm:max-w-[55%] sm:text-right">
-                    {platesBreakdownLb(item.weight)}
+            <div className="mt-8 space-y-0">
+              <p className="mb-3 text-xs font-medium uppercase tracking-wider text-slate-500">
+                Warmup
+              </p>
+              <ul className="divide-y divide-white/10">
+                {warmupRows.map((item) => (
+                  <li
+                    key={item.title}
+                    className="flex flex-col gap-1 py-4 first:pt-0 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4"
+                  >
+                    <div className="flex flex-wrap items-baseline gap-2">
+                      <span className="text-sm font-medium tabular-nums text-blue-400/90">
+                        {item.title}
+                      </span>
+                      <span className="text-lg font-semibold tabular-nums text-white">
+                        {item.weight} lbs
+                        {mode === "barbell" && (
+                          <span className="ml-1 text-xs font-normal text-slate-500">
+                            per side
+                          </span>
+                        )}
+                      </span>
+                      {item.reps != null && (
+                        <>
+                          <span className="text-slate-500">×</span>
+                          <span className="tabular-nums text-slate-300">
+                            {item.reps} reps
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    {mode === "barbell" && (
+                      <p className="text-xs leading-relaxed text-slate-500 sm:max-w-[55%] sm:text-right">
+                        {platesBreakdownLb(item.weight)}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+
+              {workingRow && (
+                <div className="mt-6 border-t border-white/15 pt-6">
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-emerald-400/95">
+                    Working set
                   </p>
-                </li>
-              ))}
-            </ul>
+                  <div className="rounded-xl border border-emerald-500/35 bg-emerald-950/25 px-4 py-4 shadow-inner shadow-black/20 sm:px-5">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+                      <div className="flex flex-wrap items-baseline gap-2">
+                        <span className="text-sm font-medium tabular-nums text-emerald-300/90">
+                          {workingRow.title}
+                        </span>
+                        <span className="text-xl font-semibold tabular-nums text-white">
+                          {workingRow.weight} lbs
+                          {mode === "barbell" && (
+                            <span className="ml-1 text-sm font-normal text-slate-400">
+                              per side
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      {mode === "barbell" && (
+                        <p className="text-xs leading-relaxed text-slate-400 sm:max-w-[55%] sm:text-right">
+                          {platesBreakdownLb(workingRow.weight)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           {result.length === 0 && (
