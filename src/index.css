@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+@keyframes gradient-shift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes gradient-drift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(2%, -3%) scale(1.05);
+  }
+  66% {
+    transform: translate(-3%, 2%) scale(1.02);
+  }
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    @apply min-h-full;
+  }
+
+  body {
+    @apply m-0 antialiased text-slate-100;
+  }
+}
+
+.bg-gradient-animate {
+  background: linear-gradient(
+    125deg,
+    #050508 0%,
+    #0c0c14 18%,
+    #12121f 35%,
+    #0a1628 52%,
+    #141428 70%,
+    #0a0a12 88%,
+    #050508 100%
+  );
+  background-size: 400% 400%;
+  animation: gradient-shift 22s ease-in-out infinite;
+}
+
+.bg-mesh-drift {
+  background: radial-gradient(
+      ellipse 80% 60% at 20% 30%,
+      rgba(59, 130, 246, 0.12) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 70% 50% at 80% 70%,
+      rgba(139, 92, 246, 0.1) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse 60% 40% at 50% 50%,
+      rgba(15, 23, 42, 0.4) 0%,
+      transparent 60%
+    );
+  animation: gradient-drift 28s ease-in-out infinite;
+}
