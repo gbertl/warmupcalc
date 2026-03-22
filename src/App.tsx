@@ -22,7 +22,7 @@ function snapPerSideFloorLb(lb: number): number {
 }
 
 /** Standard full-size plates (lb), largest first — greedy sum matches typical loading. */
-const PLATE_SIZES_LB = [45, 35, 25, 10, 5] as const;
+const PLATE_SIZES_LB = [45, 35, 25, 15, 10, 5] as const;
 
 function platesBreakdownLb(totalLb: number): string {
   let remaining = totalLb;
