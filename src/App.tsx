@@ -37,7 +37,12 @@ function platesBreakdownLb(totalLb: number): string {
   return parts.join(", ");
 }
 
-type EquipmentMode = "barbell" | "machine";
+const EquipmentMode = {
+  Barbell: "barbell",
+  Machine: "machine",
+} as const;
+
+type EquipmentMode = (typeof EquipmentMode)[keyof typeof EquipmentMode];
 
 const WARMUP_SETS: { pct: number; reps: number; title: string }[] = [
   { title: "40%", pct: 0.4, reps: 8 },
@@ -46,7 +51,7 @@ const WARMUP_SETS: { pct: number; reps: number; title: string }[] = [
 ];
 
 const App = () => {
-  const [mode, setMode] = useState<EquipmentMode>("barbell");
+  const [mode, setMode] = useState<EquipmentMode>(EquipmentMode.Barbell);
   const [weight, setWeight] = useState<number | "">("");
 
   const handleWeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -65,7 +70,7 @@ const App = () => {
 
     const value = Number(weight);
 
-    if (mode === "machine") {
+    if (mode === EquipmentMode.Machine) {
       return [
         ...WARMUP_SETS.map((s) => ({
           title: s.title,
@@ -135,26 +140,26 @@ const App = () => {
             <button
               type="button"
               role="tab"
-              aria-selected={mode === "barbell"}
+              aria-selected={mode === EquipmentMode.Barbell}
               className={`flex-1 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                mode === "barbell"
+                mode === EquipmentMode.Barbell
                   ? "bg-slate-800 text-white shadow-sm"
                   : "text-slate-400 hover:text-slate-300"
               }`}
-              onClick={() => setMode("barbell")}
+              onClick={() => setMode(EquipmentMode.Barbell)}
             >
               Barbell
             </button>
             <button
               type="button"
               role="tab"
-              aria-selected={mode === "machine"}
+              aria-selected={mode === EquipmentMode.Machine}
               className={`flex-1 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                mode === "machine"
+                mode === EquipmentMode.Machine
                   ? "bg-slate-800 text-white shadow-sm"
                   : "text-slate-400 hover:text-slate-300"
               }`}
-              onClick={() => setMode("machine")}
+              onClick={() => setMode(EquipmentMode.Machine)}
             >
               Machine
             </button>
@@ -194,7 +199,7 @@ const App = () => {
                       </span>
                       <span className="text-lg font-semibold tabular-nums text-white">
                         {item.weight} lbs
-                        {mode === "barbell" && (
+                        {mode === EquipmentMode.Barbell && (
                           <span className="ml-1 text-xs font-normal text-slate-500">
                             per side
                           </span>
@@ -209,7 +214,7 @@ const App = () => {
                         </>
                       )}
                     </div>
-                    {mode === "barbell" && (
+                    {mode === EquipmentMode.Barbell && (
                       <p className="text-xs leading-relaxed text-slate-500 sm:max-w-[55%] sm:text-right">
                         {platesBreakdownLb(item.weight)}
                       </p>
@@ -231,14 +236,14 @@ const App = () => {
                         </span>
                         <span className="text-xl font-semibold tabular-nums text-white">
                           {workingRow.weight} lbs
-                          {mode === "barbell" && (
+                          {mode === EquipmentMode.Barbell && (
                             <span className="ml-1 text-sm font-normal text-slate-400">
                               per side
                             </span>
                           )}
                         </span>
                       </div>
-                      {mode === "barbell" && (
+                      {mode === EquipmentMode.Barbell && (
                         <p className="text-xs leading-relaxed text-slate-400 sm:max-w-[55%] sm:text-right">
                           {platesBreakdownLb(workingRow.weight)}
                         </p>
