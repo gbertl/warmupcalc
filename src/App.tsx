@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 interface Result {
   title: string;
@@ -50,9 +50,50 @@ const WARMUP_SETS: { pct: number; reps: number; title: string }[] = [
   { title: "75%", pct: 0.75, reps: 2 },
 ];
 
+const SWIPE_MIN_PX = 48;
+const SWIPE_HORIZONTAL_RATIO = 1.35;
+
 const App = () => {
   const [mode, setMode] = useState<EquipmentMode>(EquipmentMode.Barbell);
   const [weight, setWeight] = useState<number | "">("");
+  const cardSwipeStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  const onCardSwipeTouchStart = useCallback((e: React.TouchEvent) => {
+    const el = e.target as HTMLElement | null;
+    if (el?.closest("input, textarea, select, a, [contenteditable]")) {
+      cardSwipeStartRef.current = null;
+      return;
+    }
+    const t = e.changedTouches[0];
+    cardSwipeStartRef.current = { x: t.clientX, y: t.clientY };
+  }, []);
+
+  const onCardSwipeTouchEnd = useCallback((e: React.TouchEvent) => {
+    const start = cardSwipeStartRef.current;
+    cardSwipeStartRef.current = null;
+    if (!start) return;
+
+    const t = e.changedTouches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+
+    if (Math.abs(dx) < SWIPE_MIN_PX) return;
+    if (Math.abs(dx) < Math.abs(dy) * SWIPE_HORIZONTAL_RATIO) return;
+
+    if (dx < 0) {
+      setMode((m) =>
+        m === EquipmentMode.Barbell ? EquipmentMode.Machine : m,
+      );
+    } else {
+      setMode((m) =>
+        m === EquipmentMode.Machine ? EquipmentMode.Barbell : m,
+      );
+    }
+  }, []);
+
+  const onCardSwipeTouchCancel = useCallback(() => {
+    cardSwipeStartRef.current = null;
+  }, []);
 
   const handleWeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
@@ -127,11 +168,17 @@ const App = () => {
             WarmupCalc
           </h1>
           <p className="text-sm leading-relaxed text-slate-400">
-            Choose your working weight for warmup sets
+            Enter your target working weight and we&apos;ll calculate warmup
+            sets
           </p>
         </header>
 
-        <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-6 shadow-2xl shadow-black/50 backdrop-blur-xl sm:p-8">
+        <div
+          className="touch-pan-y rounded-2xl border border-white/10 bg-slate-950/40 p-6 shadow-2xl shadow-black/50 backdrop-blur-xl sm:p-8"
+          onTouchStart={onCardSwipeTouchStart}
+          onTouchEnd={onCardSwipeTouchEnd}
+          onTouchCancel={onCardSwipeTouchCancel}
+        >
           <div
             className="mb-6 flex rounded-xl border border-white/10 bg-slate-900/50 p-1"
             role="tablist"
