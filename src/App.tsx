@@ -52,6 +52,7 @@ const WARMUP_SETS: { pct: number; reps: number; title: string }[] = [
 
 const SWIPE_MIN_PX = 48;
 const SWIPE_HORIZONTAL_RATIO = 1.35;
+const FEEDBACK_EMAIL_PARTS = ["gilbertlcsndle", "gmail.com"] as const;
 
 const App = () => {
   const [mode, setMode] = useState<EquipmentMode>(EquipmentMode.Barbell);
@@ -94,6 +95,15 @@ const App = () => {
   const onCardSwipeTouchCancel = useCallback(() => {
     cardSwipeStartRef.current = null;
   }, []);
+
+  const handleEmailClick = useCallback(
+    (e: React.MouseEvent<HTMLAnchorElement>) => {
+      e.preventDefault();
+      const [local, domain] = FEEDBACK_EMAIL_PARTS;
+      window.location.href = `mailto:${local}@${domain}`;
+    },
+    [],
+  );
 
   const handleWeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
@@ -313,7 +323,8 @@ const App = () => {
           Have feedback? I&apos;d love to hear it —{" "}
           <a
             className="text-slate-500 underline decoration-slate-600/50 underline-offset-2 hover:text-slate-400"
-            href="mailto:gilbertlcsndle@gmail.com"
+            href="#email"
+            onClick={handleEmailClick}
           >
             email
           </a>
